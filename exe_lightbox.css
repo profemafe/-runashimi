@@ -1,561 +1,95 @@
-/* 
-    Accessibility Toolbar for eXeLearning, by:
-        Juan José de Haro - Original code: BatexeGo - Botones de accesibilidad para la web (https://batexego.bilateria.org/)
-        Ignacio Gros (https://www.gros.es/) - eXeLearning (http://exelearning.net/) version
-    License: Creative Commons Attribution-ShareAlike (https://creativecommons.org/licenses/by-sa/4.0/)
-
-    It includes $exe.atools.Drog, derived from:
-        Drog.js v1.2.1 (https://github.com/erovas/Drog.js)
-        Drog.js, by Emanuel Rojas Vásquez is under the BSD 3-Clause License
-        See Help - Legal Notes - Third Libraries for details
-        eXeLearning includes and exports a modified version of Drog.js, with written permission of his author
-        
-    The accessibility toolbar allows visitors to choose the font family, and it includes and will export these typefaces:
-        
-        OpenDyslexic: A typeface for Dyslexia (https://opendyslexic.org/)
-        OpenDyslexic is free to use: The newest version of OpenDyslexic now uses the SIL-OFL license (https://openfontlicense.org/)
-        
-        Atkinson Hyperlegible: Intended to be optimally legible for readers who are partially visually impaired (https://brailleinstitute.org/freefont)
-        Developed by the Braille Institute of America in collaboration with Applied Design Works.
-        Available under the SIL Open Font License (https://openfontlicense.org/). 
-        
-        Montserrat: A modern san-serif easy to read free font.
-        Designed by Julieta Ulanovsky, Sol Matas, Juan Pablo del Peral, Jacques Le Bailly.
-        The Montserrat project is led by Julieta Ulanovsky. See https://github.com/JulietaUla/Montserrat
-        Available under the SIL Open Font License (https://openfontlicense.org/). 
-    
-*/
-$exe.atools = {
-    options : {
-        draggable : true,
-        modeToggler : $exe.options.atools.modeToggler,
-        translator : $exe.options.atools.translator
-    },
-    i18n : {
-        read : $exe_i18n["read"],
-        translate : $exe_i18n["translate"],
-        drag_and_drop : $exe_i18n["drag_and_drop"],
-        mode_toggler : $exe_i18n["mode_toggler"],
-        uppercase_text : $exe_i18n["uppercase_text"] || "Uppercase",
-        accessibility_tools : $exe_i18n['accessibility_tools'],
-        default_font : $exe_i18n["default_font"],
-        increase_text_size : $exe_i18n["increase_text_size"],
-        decrease_text_size : $exe_i18n["decrease_text_size"],
-        reset : $exe_i18n["reset"],
-        close_toolbar : $exe_i18n["close_toolbar"],
-        stop_reading : $exe_i18n["stop_reading"]
-    },
-    storage : {
-        originalFontSize : "",
-        setOriginalFontSize : function(){
-            var originalFontSize = window.getComputedStyle(document.body).getPropertyValue('font-size');
-                originalFontSize = originalFontSize.replace("px","");
-                $exe.atools.storage.originalFontSize = Number(originalFontSize);
-        },
-        getTranslatorStatus : function(){
-            var opts = $exe.atools.options;
-            if (opts.translator!==true) return "off";
-            var e = localStorage.getItem('exeAtoolsTranslator');
-            if (e==="on") return "on";
-            return "off";
-        },
-        getToolbarStatus : function(){
-            var e = localStorage.getItem('exeAtoolsStatus');
-            if (e==="on") return "on";
-            return "off";
-        },
-        getFontSize : function(){
-            var e = localStorage.getItem('exeAtoolsFontSize');
-            if (e) return e;
-            return "";
-        },
-        getFontFamily : function(){
-            var e = localStorage.getItem('exeAtoolsFontFamily');
-            if (e) return e;
-            return "";
-        },
-        getUppercaseStatus : function(){
-            var e = localStorage.getItem('exeAtoolsUppercase');
-            if (e==="on") return "on";
-            return "off";
-        },
-        getToolbarPosition : function(){
-            var e = localStorage.getItem('exeAtoolsToolbarStyles');
-            if (e) return e;
-            return "";
-        }
-    },
-    init : function(){
-        if (typeof(localStorage)=='undefined') return;
-        // Custom options
-        try {
-            // Those values might be changed in HEADER / FOOTER
-            this.options.modeToggler = $exe.options.atools.modeToggler;
-            this.options.translator = $exe.options.atools.translator;
-        } catch(e) {
-            
-        }
-        // Custom strings
-        var strs = $exe.options.atools.i18n;
-        for (i in strs) {
-            if (typeof($exe.atools.i18n[i])=='string') {
-                $exe.atools.i18n[i] = strs[i];
-            }
-        }
-        this.start();
-    },
-    start : function(){
-        var i18n = $exe.atools.i18n;
-        var opts = $exe.atools.options;
-        $exe.atools.storage.setOriginalFontSize();
-        var reader = "";
-        if (typeof(SpeechSynthesisUtterance)=="function") reader = '<button id="eXeAtoolsReadBtn">'+i18n["read"]+'</button>';
-        var translator = "";
-        if (opts.translator==true) translator = '<button id="eXeAtoolsTranslateBtn">'+i18n["translate"]+' (Google Translate)</button>';
-        var dragBtn = "";
-        if (opts.draggable==true) {
-            dragBtn = '<button id="eXeAtoolsSetDragHandler" data-drog>'+i18n["drag_and_drop"]+'</button>';        
-        } else {
-            localStorage.setItem('exeAtoolsToolbarStyles','');
-        }
-        var modeBtn = "";
-        if (opts.modeToggler==true) {
-            modeBtn = '<button id="eXeAtoolsModeToggler">'+i18n["mode_toggler"]+'</button>';        
-        }
-        var html = '\
-            <div id="eXeAtools" class="loading">\
-                <div id="eXeAtoolsBtnSet"><button id="eXeAtoolsBtn" title="'+i18n['accessibility_tools']+'"><span class="sr-av">'+i18n['accessibility_tools']+'</span></button></div>\
-                <div id="eXeAtoolsSet">\
-                    <h2 class="sr-av">'+i18n['accessibility_tools']+'</h2>\
-                    '+dragBtn+'<label for="eXeAtoolsFont" class="sr-av">'+i18n["default_font"]+'</label>\
-                    <select id="eXeAtoolsFont">\
-                        <option value="">'+i18n["default_font"]+'</option>\
-                        <option value="od">OpenDyslexic</option>\
-                        <option value="ah">Atkinson Hyperlegible</option>\
-                        <option value="mo">Montserrat</option>\
-                    </select><button id="eXeAtoolsLgTextBtn">'+i18n["increase_text_size"]+'</button><button id="eXeAtoolsSmTextBtn">'+i18n["decrease_text_size"]+'</button><button id="eXeAtoolsUppercaseBtn">'+i18n["uppercase_text"]+'</button><button id="eXeAtoolsResetBtn">'+i18n["reset"]+'</button>'+modeBtn+reader+translator+'<button id="eXeAtoolsCloseBtn">'+i18n["close_toolbar"]+'</button>\
-                </div>\
-            </div>\
-        ';
-        let skipNav = $("#skipNav");
-        if ($("body").hasClass("exe-web-site") && skipNav.length==1) skipNav.after(html);
-        else $("body").prepend(html);
-        if ($exe.atools.storage.getToolbarStatus()=="on") $("body").addClass("exe-atools-on");
-        $("#eXeAtoolsSet button").each(function(){
-            this.title = this.innerHTML;
-            this.innerHTML = '<span class="sr-av">'+this.innerHTML+'</span>';
-        });
-        this.setEvents();
-        // Check the font size
-        if ($exe.atools.storage.getFontSize()!="") {
-            document.body.style.fontSize = $exe.atools.storage.getFontSize();
-        }
-        // Choose the font family
-        $("#eXeAtoolsFont").val($exe.atools.storage.getFontFamily()).trigger("change");
-        // Check if uppercase text should be on
-        $exe.atools.setUppercase($exe.atools.storage.getUppercaseStatus()==="on", false);
-        // Check if the translator should be on
-        if ($exe.atools.storage.getTranslatorStatus()==="on") {
-            localStorage.setItem('exeAtoolsTranslator',false);
-            $exe.atools.toggleGoogleTranslateWidget();
-        }
-        // Check the reset button status
-        $exe.atools.checkResetBtnStatus();
-        // Show the toolbar
-        $("#eXeAtools").removeClass("loading");
-        // Make it draggable amd set the previous position
-        if (opts.draggable==true) {
-            var handler = document.getElementById("eXeAtoolsSet");            
-            var css = $exe.atools.storage.getToolbarPosition();
-            if (css!="") {
-                handler.style = css;
-            }
-            $exe.atools.Drog.on(handler);
-            // Move so the element does not move to bottom left the first time you drag it
-            $exe.atools.draggable.fixPosition(handler);        
-        }
-    },
-    checkResetBtnStatus : function(){
-        var btn = $("#eXeAtoolsResetBtn");
-        if ($exe.atools.storage.getTranslatorStatus()=="on" || $exe.atools.storage.getFontSize()!="" || $exe.atools.storage.getFontFamily()!="" || $exe.atools.storage.getUppercaseStatus()=="on") {
-            btn.removeClass("reset-disabled");
-        } else {
-            btn.addClass("reset-disabled");
-        }
-    },
-    setUppercase : function(enabled, save) {
-        var body = $("body");
-        var btn = $("#eXeAtoolsUppercaseBtn");
-        if (enabled===true) {
-            body.addClass("exe-atools-uc");
-            btn.addClass("eXeAtoolsActive").attr("aria-pressed","true");
-        } else {
-            body.removeClass("exe-atools-uc");
-            btn.removeClass("eXeAtoolsActive").attr("aria-pressed","false");
-        }
-        if (save!==false) {
-            localStorage.setItem('exeAtoolsUppercase', enabled===true ? "on" : "off");
-        }
-    },
-    setEvents : function(){
-        $("#eXeAtoolsBtn,#eXeAtoolsCloseBtn").click(function(){
-            var e = $("body");
-            var v = "off";
-            e.toggleClass("exe-atools-on");
-            if (e.hasClass("exe-atools-on")) v = "on";
-            else {
-                $("#eXeAtoolsBtn").addClass("eXeAreminder");
-                setTimeout(function(){
-                    $("#eXeAtoolsBtn").removeClass("eXeAreminder");
-                },1000);
-            }
-            localStorage.setItem('exeAtoolsStatus',v);
-        });
-        $("#eXeAtoolsFont").change(function(){
-            var v = this.value;
-            var fonts = [
-                "od",
-                "ah",
-                "mo"
-            ];
-            for (var i=0;i<fonts.length;i++) {
-                $("body").removeClass("exe-atools-"+fonts[i]);
-            }
-            if (v!=""){
-                $("body").addClass("exe-atools-"+v);
-            }
-            localStorage.setItem('exeAtoolsFontFamily',v);
-            // Check the reset button status
-            $exe.atools.checkResetBtnStatus();            
-        });
-        $("#eXeAtoolsLgTextBtn").click(function(){
-            $exe.atools.setFontSize(1);
-            // Check the reset button status
-            $exe.atools.checkResetBtnStatus();
-        });
-        $("#eXeAtoolsSmTextBtn").click(function(){
-            $exe.atools.setFontSize(-1);
-            // Check the reset button status
-            $exe.atools.checkResetBtnStatus();
-        });
-        $("#eXeAtoolsUppercaseBtn").click(function(){
-            $exe.atools.setUppercase(!$("body").hasClass("exe-atools-uc"));
-            // Check the reset button status
-            $exe.atools.checkResetBtnStatus();
-        });
-        $("#eXeAtoolsTranslateBtn").click(function(){
-            $exe.atools.toggleGoogleTranslateWidget();
-            // Check the reset button status
-            $exe.atools.checkResetBtnStatus();
-        });
-        $("#eXeAtoolsReadBtn").click(function(){
-            $exe.atools.reader.read();
-        });
-        $("#eXeAtoolsResetBtn").click(function(){
-            if (this.className=="reset-disabled") return false;
-            document.body.style.fontSize="";
-            localStorage.setItem('exeAtoolsFontSize', '');
-            $("#eXeAtoolsFont").val("").trigger("change");
-            localStorage.setItem('exeAtoolsFontFamily', '');
-            $exe.atools.setUppercase(false);
-            if($exe.atools.storage.getTranslatorStatus()=="on") $exe.atools.toggleGoogleTranslateWidget();
-            // Back to left bottom position:
-            // $("#eXeAtoolsSet").attr("style","");
-            // localStorage.setItem('exeAtoolsToolbarStyles','');
-        });
-        $("#eXeAtoolsModeToggler").click(function(){
-            var c = "exe-atools-dm";
-            var b = $("body");
-            if (b.hasClass(c)) {
-                b.removeClass(c);
-                localStorage.setItem('exeAtoolsMode', "");
-            } else {
-                b.addClass(c);
-                localStorage.setItem('exeAtoolsMode', 'dark');
-            }
-        });
-        if ($exe.atools.options.draggable==true) {
-            $(window).on("resize",function(){
-                $exe.atools.draggable.checkPosition();
-            });            
-        }
-    },
-    reader : {
-        isReading : false,
-        read : function(){
-            var i18n = $exe.atools.i18n;
-            if (typeof($exe.atools.reader.utterance)=='undefined') $exe.atools.reader.utterance = new SpeechSynthesisUtterance();
-            let selectedText = window.getSelection().toString();
-            let text = '';
-            let lang = document.documentElement.lang != "" ? document.documentElement.lang : 'en';
-            if (selectedText !== '') {
-                text = selectedText;
-                let selectedNode = window.getSelection().anchorNode;
-                while (selectedNode && selectedNode.nodeType !== Node.ELEMENT_NODE) {
-                    selectedNode = selectedNode.parentNode;
-                }
-                if (selectedNode) {
-                    const selectedLang = selectedNode.getAttribute('lang');
-                    if (selectedLang) {
-                        lang = selectedLang;
-                    }
-                }
-            } else {
-                // text = document.getElementById("main").innerText;
-                // To review (selector)
-                let mainWrapper = $("div.page");
-                if (mainWrapper.length == 1) {
-                    mainWrapper = mainWrapper[0];
-                    text = mainWrapper.innerText;
-                }
-            }
-            if (text == "") return;
-            $exe.atools.reader.utterance.lang = lang;
-            $exe.atools.reader.utterance.text = text;
-            if ($exe.atools.reader.isReading==false) {
-                $exe.atools.reader.isReading = true;
-                $("#eXeAtoolsReadBtn").addClass("eXeAtoolsReading").attr("title",i18n["stop_reading"]);
-                speechSynthesis.speak($exe.atools.reader.utterance);
-            } else {
-                $exe.atools.reader.isReading = false;
-                $("#eXeAtoolsReadBtn").removeClass("eXeAtoolsReading").attr("title",i18n["read"]);
-                speechSynthesis.cancel();
-            }
-            $exe.atools.reader.utterance.addEventListener('end', () => {
-                $exe.atools.reader.isReading = false;
-                $("#eXeAtoolsReadBtn").removeClass("eXeAtoolsReading").attr("title",i18n["read"]);
-            });            
-        }
-    },
-    setFontSize : function(size) {
-        var currentFontSize = document.body.style.fontSize;
-            currentFontSize = currentFontSize.replace("px","");
-            currentFontSize = parseInt(currentFontSize);
-        if (isNaN(currentFontSize)) currentFontSize = $exe.atools.storage.originalFontSize;
-        currentFontSize += size;
-        if (currentFontSize<=$exe.atools.storage.originalFontSize) {
-            document.body.style.fontSize = "";
-            localStorage.setItem('exeAtoolsFontSize', '');
-            return false;
-        }
-        document.body.style.fontSize = currentFontSize + 'px';
-        localStorage.setItem('exeAtoolsFontSize', currentFontSize + 'px');
-    },
-    toggleGoogleTranslateWidget : function() {
-        var googleTranslateWidgetVisible = $exe.atools.storage.getTranslatorStatus();
-        if (googleTranslateWidgetVisible=="off") {
-            const script = document.createElement('script');
-                script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
-                script.id = 'google-translate-script';
-            document.head.appendChild(script);
-            const googleTranslateElement = document.createElement('div');
-                googleTranslateElement.id = 'google_translate_element';
-                googleTranslateElement.style.position = 'fixed';
-                googleTranslateElement.style.top = '0';
-                googleTranslateElement.style.right = '0';
-                googleTranslateElement.style.zIndex = '1000';
-            document.body.appendChild(googleTranslateElement);
-            window.googleTranslateElementInit = function() {
-                new google.translate.TranslateElement({pageLanguage: 'auto', layout: google.translate.TranslateElement.FloatPosition.TOP_RIGHT}, 'google_translate_element');
-            };
-            googleTranslateWidgetVisible = "on";
-        } else {
-            $("#google-translate-script,#google_translate_element,.skiptranslate").remove();
-            document.body.style.top = "auto";
-            googleTranslateWidgetVisible = "off";
-        }
-        localStorage.setItem('exeAtoolsTranslator',googleTranslateWidgetVisible);
-    },
-    draggable : {
-        limit : function(x,y){
-            var e = $("#eXeAtoolsSet");
-            var h = e.height();
-            var w = e.width();
-            var maxTop = ($(window).height()-h);
-            var bodyT = $("body").css("top");
-            if (bodyT=="40px") {
-                maxTop = maxTop-40;
-            }
-            var maxLeft = ($(window).width()-w);
-            if (x>maxLeft) x = maxLeft;
-            else if (x<0) x = 0;
-            if (-y>maxTop) y = -maxTop;
-            else if (y>0) y = 0;    
-            return [x, y];            
-        },
-        checkPosition : function(){
-            if (!$("body").hasClass("exe-atools-on")) return;
-            var e = document.getElementById("eXeAtoolsSet");
-            var translate = $exe.atools.draggable.getTranslation(e);
-            var translateX = translate[0];
-            var translateY = translate[1];
-            if (translateX==0&&translateY==0) return;
-            var pos = $exe.atools.draggable.limit(translateX,translateY);
-            var x = pos[0];
-            var y = pos[1];
-            
-            if (x==0&&y==0) {
-                e.style = "";
-                localStorage.setItem('exeAtoolsToolbarStyles', '');
-                return;
-            }
-            
-            e.style.transform = "translate("+x+"px, "+y+"px)";
-            localStorage.setItem('exeAtoolsToolbarStyles', e.style.cssText);
-        },
-        fixPosition : function(e){
-            var translate = $exe.atools.draggable.getTranslation(e);
-            var translateX = translate[0];
-            var translateY = translate[1];
-            if (translateX==0&&translateY==0) return;
-            $exe.atools.Drog.move(e, translateX, translateY);            
-        },
-        getTranslation : function(e){
-            var style = window.getComputedStyle(e);
-            var matrix = new WebKitCSSMatrix(style.transform);
-            var translateX = matrix.m41;
-            var translateY = matrix.m42;
-            return [translateX,translateY];
-        }
-    }
-};
-$(function(){
-    $exe.atools.init();
-});
-/*
-    $exe.atools.Drog for eXeLearning is derived from:
-    Drog.js v1.2.1 (https://github.com/erovas/Drog.js)
-    Drog.js, by Emanuel Rojas Vásquez is under the BSD 3-Clause License
-    See Help - Legal Notes - Third Libraries for details
-    eXeLearning includes and exports a modified version of Drog.js, with written permission of his author
-*/
-(function(window, document){
-
-    let Xi = '-Xi', Yi = '-Yi', Xf = '-Xf', Yf = '-Yf', Xt = '-x', Yt = '-y',
-        mousedown = 'mousedown', touchstart = 'touchstart',
-        mousemove = 'mousemove', touchmove = 'touchmove',
-        mouseup = 'mouseup', touchend = 'touchend',
-        father = '-f', passive = { passive: false },
-        isDrog = '-d', data = '[data-drog]', elmnt, that;
-
-    function addEvent(element, event, callback, opt){
-        element.addEventListener(event, callback, opt || false);
-    }
-
-    function removeEvent(element, event, callback, opt){
-        element.removeEventListener(event, callback, opt || false);
-    }    
-
-    function on(element){
-
-        if(element[isDrog])
-            return;
-
-        let target = element.querySelector(data) || element;
-
-        // Save reference original element into target
-        target[father] = element;
-
-        // Save element position
-        element[Xt] = 0;
-        element[Yt] = 0;
-
-        target.style.touchAction = "none";
-
-        // Signing element
-        element[isDrog] = true;
-
-        addEvent(target, mousedown, drogInit);
-        addEvent(target, touchstart, drogInit, passive);
-    }
-
-    function move(element, x, y){
-        if(!element[isDrog])
-            return;
-        x = parseFloat(x) || 0;
-        y = parseFloat(y) || 0
-        element[Xt] = x;
-        element[Yt] = y;
-        element.style.transform = 'translate(' + x + 'px,' + y + 'px)';
-    }
-
-    function drogInit(e){
-
-        // Fire by central or left click, avoid it
-        if(e.which === 2 || e.which === 3)
-            return;
-
-        that = this;
-        elmnt = that[father];
-
-        // Get the mouse cursor position at startup:
-        elmnt[Xi] = e.clientX || e.targetTouches[0].clientX;
-        elmnt[Yi] = e.clientY || e.targetTouches[0].clientY;
-
-        // Call a function whenever the cursor moves:
-        if(e.type === touchstart){
-            addEvent(that, touchmove, drogMove, passive);
-            addEvent(that, touchend, drogEnd, passive);
-        }
-        else {
-            addEvent(document, mousemove, drogMove);
-            addEvent(document, mouseup, drogEnd);
-        }
-    }
-
-    function drogMove(e){
-
-        e.preventDefault();
-        
-        if(e.type === touchmove)
-            elmnt = this[father];
-
-        // Calculate the new cursor position
-        try {
-            elmnt[Xf] = e.clientX || e.targetTouches[0].clientX;
-            elmnt[Yf] = e.clientY || e.targetTouches[0].clientY;
-        } catch(e){
-            
-        }
-
-        elmnt[Xt] -= elmnt[Xi] - elmnt[Xf];
-        elmnt[Yt] -= elmnt[Yi] - elmnt[Yf];
-
-        elmnt[Xi] = elmnt[Xf];
-        elmnt[Yi] = elmnt[Yf];
-        
-        // Elmnt should not be dragged out of the window
-        var pos = $exe.atools.draggable.limit(elmnt[Xt],elmnt[Yt]);
-            elmnt[Xt] = pos[0];
-            elmnt[Yt] = pos[1];
-            
-        if (pos[0]==0&&pos[1]==0) {
-            elmnt.style = "";
-            localStorage.setItem('exeAtoolsToolbarStyles', '');
-            return;
-        }
-
-        elmnt.style.transform = 'translate(' + elmnt[Xt] + 'px,' + elmnt[Yt] + 'px)';
-        localStorage.setItem('exeAtoolsToolbarStyles', elmnt.style.cssText);
-    }
-
-    function drogEnd(){
-        that = this;
-        // Stop moving when mouse/touch is released:
-        removeEvent(document, mousemove, drogMove);
-        removeEvent(document, mouseup, drogEnd);
-        removeEvent(that, touchmove, drogMove, passive);
-        removeEvent(that, touchend, drogEnd, passive);
-    }
-
-    $exe.atools.Drog = {
-        on: on,
-        move: move
-    }
-
-})(window, document);
-
-// Export for Node.js/CommonJS (tests)
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = $exe.atools;
-}
+/* The New eXeLearning */
+.exeImageGallery{margin:1em 0 0 15px;padding:0;overflow:auto}
+.exeImageGallery li{margin:0;padding:5px 15px 25px 15px;display:block;float:left;list-style:none}
+.exeImageGallery a{display:inline-block;width:128px;height:128px;background:#FFF;box-shadow:0 8px 6px -6px rgba(0,0,0,0.6);transition: all 0.5s cubic-bezier(.25,.8,.25,1)}
+.exeImageGallery a:hover{box-shadow:0 10px 7px -6px rgba(0,0,0,0.8)}
+.exeImageGallery a img{border:none}
+.exeImageGallery .tit{display:none}
+/* prettyPhoto, by Stephane Caron */
+div.pp_default .pp_top,div.pp_default .pp_top .pp_middle,div.pp_default .pp_top .pp_left,div.pp_default .pp_top .pp_right,div.pp_default .pp_bottom,div.pp_default .pp_bottom .pp_left,div.pp_default .pp_bottom .pp_middle,div.pp_default .pp_bottom .pp_right{height:13px}
+div.pp_default .pp_top .pp_left{background:url(exe_lightbox_sprite.png) -78px -93px no-repeat}
+div.pp_default .pp_top .pp_middle{background:url(exe_lightbox_sprite_x.png) top left repeat-x}
+div.pp_default .pp_top .pp_right{background:url(exe_lightbox_sprite.png) -112px -93px no-repeat}
+div.pp_default .pp_content .ppt{color:#f8f8f8}
+div.pp_default .pp_content_container .pp_left{background:url(exe_lightbox_sprite_y.png) -7px 0 repeat-y;padding-left:13px}
+div.pp_default .pp_content_container .pp_right{background:url(exe_lightbox_sprite_y.png) top right repeat-y;padding-right:13px}
+div.pp_default .pp_next:hover{background:url(exe_lightbox_sprite_next.png) center right no-repeat;cursor:pointer}
+div.pp_default .pp_previous:hover{background:url(exe_lightbox_sprite_prev.png) center left no-repeat;cursor:pointer}
+div.pp_default .pp_expand{background:url(exe_lightbox_sprite.png) 0 -29px no-repeat;cursor:pointer;width:28px;height:28px}
+div.pp_default .pp_expand:hover{background:url(exe_lightbox_sprite.png) 0 -56px no-repeat;cursor:pointer}
+div.pp_default .pp_contract{background:url(exe_lightbox_sprite.png) 0 -84px no-repeat;cursor:pointer;width:28px;height:28px}
+div.pp_default .pp_contract:hover{background:url(exe_lightbox_sprite.png) 0 -113px no-repeat;cursor:pointer}
+div.pp_default .pp_close{width:30px;height:30px;background:url(exe_lightbox_sprite.png) 2px 1px no-repeat;cursor:pointer}
+div.pp_default .pp_gallery ul li a{background:url(exe_lightbox_default_thumb.png) center center #f8f8f8;border:1px solid #aaa}
+div.pp_default .pp_social{margin-top:7px}
+div.pp_default .pp_gallery a.pp_arrow_previous,div.pp_default .pp_gallery a.pp_arrow_next{position:static;left:auto}
+div.pp_default .pp_nav .pp_play,div.pp_default .pp_nav .pp_pause{background:url(exe_lightbox_sprite.png) -51px 1px no-repeat;height:30px;width:30px}
+div.pp_default .pp_nav .pp_pause{background-position:-51px -29px}
+div.pp_default a.pp_arrow_previous,div.pp_default a.pp_arrow_next{background:url(exe_lightbox_sprite.png) -31px -3px no-repeat;height:20px;width:20px;margin:4px 0 0}
+div.pp_default a.pp_arrow_next{left:52px;background-position:-82px -3px}
+div.pp_default .pp_content_container .pp_details{margin-top:5px}
+div.pp_default .pp_nav{clear:none;height:30px;width:110px;position:relative}
+div.pp_default .pp_nav .currentTextHolder{font-family:Georgia;font-style:italic;color:#999;font-size:11px;left:75px;line-height:25px;position:absolute;top:2px;margin:0;padding:0 0 0 10px}
+div.pp_default .pp_close:hover,div.pp_default .pp_nav .pp_play:hover,div.pp_default .pp_nav .pp_pause:hover,div.pp_default .pp_arrow_next:hover,div.pp_default .pp_arrow_previous:hover{opacity:0.7}
+div.pp_default .pp_description{font-size:11px;font-weight:700;line-height:14px;margin:5px 50px 5px 0}
+div.pp_default .pp_bottom .pp_left{background:url(exe_lightbox_sprite.png) -78px -127px no-repeat}
+div.pp_default .pp_bottom .pp_middle{background:url(exe_lightbox_sprite_x.png) bottom left repeat-x}
+div.pp_default .pp_bottom .pp_right{background:url(exe_lightbox_sprite.png) -112px -127px no-repeat}
+div.pp_default .pp_loaderIcon{background:url(exe_lightbox_loader.gif) center center no-repeat}
+div.pp_pic_holder a:focus{outline:none}
+div.pp_overlay{background:#000;display:none;left:0;position:absolute;top:0;width:100%;z-index:9500}
+div.pp_pic_holder{display:none;position:absolute;width:100px;z-index:10000}
+.pp_content{height:40px;min-width:40px}
+* html .pp_content{width:40px}
+.pp_content_container{position:relative;text-align:left;width:100%}
+.pp_content_container .pp_left{padding-left:20px}
+.pp_content_container .pp_right{padding-right:20px}
+.pp_content_container .pp_details{float:left;margin:10px 0 2px}
+.pp_description{display:none;margin:0}
+.pp_nav{clear:right;float:left;margin:3px 10px 0 0}
+.pp_nav p{float:left;white-space:nowrap;margin:2px 4px}
+.pp_nav .pp_play,.pp_nav .pp_pause{float:left;margin-right:4px;text-indent:-10000px}
+a.pp_arrow_previous,a.pp_arrow_next{display:block;float:left;height:15px;margin-top:3px;overflow:hidden;text-indent:-10000px;width:14px}
+.pp_hoverContainer{position:absolute;top:0;width:100%;z-index:2000}
+.pp_gallery{display:none;left:50%;margin-top:-50px;position:absolute;z-index:10000}
+.pp_gallery div{float:left;overflow:hidden;position:relative}
+.pp_gallery ul{float:left;height:35px;position:relative;white-space:nowrap;margin:0 0 0 5px;padding:0}
+.pp_gallery ul a{border:1px rgba(0,0,0,0.5) solid;display:block;float:left;height:33px;overflow:hidden}
+.pp_gallery ul a img{border:0}
+.pp_gallery li{display:block;float:left;margin:0 5px 0 0;padding:0}
+.pp_gallery li.default a{background:url(exe_lightbox_default_thumb.png) 0 0 no-repeat;display:block;height:33px;width:50px}
+.pp_gallery .pp_arrow_previous,.pp_gallery .pp_arrow_next{margin-top:7px!important}
+a.pp_next{display:block;float:right;height:100%;text-indent:-10000px;width:49%}
+a.pp_previous{display:block;float:left;height:100%;text-indent:-10000px;width:49%}
+a.pp_expand,a.pp_contract{cursor:pointer;display:none;height:20px;position:absolute;left:20px;text-indent:-10000px;top:10px;width:20px;z-index:20000}
+a.pp_close{position:absolute;right:0;top:0;display:block;line-height:22px;text-indent:-10000px}
+.pp_loaderIcon{display:block;height:24px;left:50%;position:absolute;top:50%;width:24px;margin:-12px 0 0 -12px}
+#pp_full_res{line-height:1!important}
+#pp_full_res .pp_inline{text-align:left}
+#pp_full_res .pp_inline p{margin:0 0 15px}
+div.ppt{color:#fff;display:none;font-size:17px;z-index:9999;margin:0 0 5px 15px}
+div.pp_default .pp_content{background-color:#fff}
+div.pp_default #pp_full_res .pp_inline{color:#000}
+div.pp_default .pp_gallery ul li a:hover,div.pp_default .pp_gallery ul li.selected a,.pp_gallery ul a:hover,.pp_gallery li.selected a{border-color:#fff}
+div.pp_default .pp_details{position:relative}
+.pp_top,.pp_bottom{height:20px;position:relative}
+* html .pp_top,* html .pp_bottom{padding:0 20px}
+.pp_top .pp_left,.pp_bottom .pp_left{height:20px;left:0;position:absolute;width:20px}
+.pp_top .pp_middle,.pp_bottom .pp_middle{height:20px;left:20px;position:absolute;right:20px}
+* html .pp_top .pp_middle,* html .pp_bottom .pp_middle{left:0;position:static}
+.pp_top .pp_right,.pp_bottom .pp_right{height:20px;left:auto;position:absolute;right:0;top:0;width:20px}
+.pp_fade,.pp_gallery li.default a img{display:none}
+/* The New eXeLearning */
+div.pp_overlay{background:#fff}
+div.pp_default .pp_nav .currentTextHolder,
+div.pp_default .pp_description{font-size:1em}
+div.ppt{display:none!important}
+#pp_full_res .pp_inline{line-height:1.5em;padding:0 10px}
+#pp_full_res .pp_inline p{margin:0;padding:.5em 0}
+#pp_full_res .pp_title{color:#000;margin:0;padding:.5em 0;font-size:1.3em}
+/* Multimedia galleries */
+div.with-audio .pp_gallery ul li a{border:1px solid #fff}
+div.with-audio .pp_gallery ul li a:hover,div.with-audio .pp_gallery ul li.selected a,.pp_gallery ul a:hover,div.with-audio .pp_gallery li.selected a{border-color:#aaa}
+.exe-media-audio-box{text-align:center;height:50px;padding:40px 0}
+.exe-media-video-box{text-align:center;min-width:480px;height:385px}
+.exe-media-download{font-weight:normal;float:right}
