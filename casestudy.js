@@ -1,209 +1,122 @@
+/* eslint-disable no-undef */
 /**
- * Form iDevice
- *
+ * Case study (export code)
  * Released under Attribution-ShareAlike 4.0 International License.
- * Author: SDWEB - Innovative Digital Solutions
- *
+ * Author: Manuel Narváez Martínez
+ * Graphic design: Ana María Zamora Moreno
  * License: http://creativecommons.org/licenses/by-sa/4.0/
  */
-var $text = {
-    ideviceClass: 'textIdeviceContent',
-    working: false,
-    durationId: 'textInfoDurationInput',
-    durationTextId: 'textInfoDurationTextInput',
-    participantsId: 'textInfoParticipantsInput',
-    participantsTextId: 'textInfoParticipantsTextInput',
-    mainContentId: 'textTextarea',
-    feedbackTitleId: 'textFeedbackInput',
-    feedbackContentId: 'textFeedbackTextarea',
-
-    defaultBtnFeedbackText: $exe_i18n.showFeedback,
-
-    /**
-     * Engine execution order: 1
-     * Get the base html of the idevice view
-     */
-    renderView(data, accessibility, template) {
-        let content = data.textTextarea || '';
-        const feedbackContent = data[this.feedbackContentId] || '';
-
-        // Add feedback from jsonProperties only if content doesn't already have it
-        if (feedbackContent) {
-            const temp = document.createElement('div');
-            temp.innerHTML = content;
-            const hasFeedback = temp.querySelector('.feedback-button')
-                || temp.querySelector('.feedbacktooglebutton')
-                || temp.querySelector('.feedbackbutton')
-                || temp.querySelector('.feedback.js-feedback')
-                || temp.querySelector('div.feedback');
-
-            if (!hasFeedback) {
-                const btnText = c_(data[this.feedbackTitleId]) || this.defaultBtnFeedbackText;
-                content += this.createFeedbackHTML(btnText, feedbackContent);
-            }
-        }
-
-        return template.replace('{content}', content);
+var $casestudy = {
+    borderColors: {
+        black: '#1c1b1b',
+        blue: '#5877c6',
+        green: '#00a300',
+        red: '#ff0000',
+        white: '#f9f9f9',
+        yellow: '#f3d55a',
+        grey: '#777777',
+        incorrect: '#d9d9d9',
+        correct: '#00ff00',
     },
 
-    getHTMLView(data, pathMedia) {
-        const isInExe = eXe.app.isInExe();
-        const durationText = isInExe
-            ? c_(data[this.durationTextId])
-            : data[this.durationTextId];
-        const participantsText = isInExe
-            ? c_(data[this.participantsTextId])
-            : data[this.participantsTextId];
+    userName: '',
+    previousScore: '',
+    initialScore: '',
+    mScorm: null,
 
-        let infoContentHTML = '';
-        if (data[this.durationId] || data[this.participantsId]) {
-            infoContentHTML = this.createInfoHTML(
-                data[this.durationId] === '' ? '' : durationText,
-                data[this.durationId],
-                data[this.participantsId] === '' ? '' : participantsText,
-                data[this.participantsId]
-            );
-        }
-
-        let contentHtml = data[this.mainContentId];
-
-        const temp = document.createElement('div');
-        temp.innerHTML = contentHtml;
-
-        const btnDiv = temp.querySelector('.feedback-button');
-        let buttonFeedBackText = data[this.feedbackTitleId];
-        if (btnDiv) {
-            // Support both legacy eXe 2.9 (feedbackbutton) and modern (feedbacktooglebutton) formats
-            const inputEl = btnDiv.querySelector('input.feedbackbutton, input.feedbacktooglebutton');
-            if (inputEl)
-                buttonFeedBackText = isInExe
-                    ? c_(inputEl.value)
-                    : inputEl.value;
-            btnDiv.remove();
-        }
-
-        let feedBackHtml = data[this.feedbackContentId] || '';
-        const fbDiv = temp.querySelector('.feedback.js-feedback');
-        if (fbDiv) {
-            feedBackHtml = fbDiv.innerHTML;
-            fbDiv.remove();
-        }
-
-        contentHtml = temp.innerHTML;
-        if (feedBackHtml) {
-            buttonFeedBackText =
-                buttonFeedBackText === ''
-                    ? this.defaultBtnFeedbackText
-                    : buttonFeedBackText;
-            if (isInExe) buttonFeedBackText = c_(buttonFeedBackText);
-        }
-
-        data['textInfoParticipantsTextInput'] = participantsText;
-        data['textInfoDurationTextInput'] = durationText;
-        data['textTextarea'] = contentHtml;
-        data['textFeedbackInput'] = buttonFeedBackText;
-        data['textFeedbackTextarea'] = feedBackHtml;
-
-        const feedbackContentHTML =
-            feedBackHtml === ''
-                ? ''
-                : this.createFeedbackHTML(buttonFeedBackText, feedBackHtml);
-        const activityContent =
-            infoContentHTML +
-            contentHtml +
-            feedbackContentHTML;
-
-        let htmlContent = `<div class="${this.ideviceClass}">`;
-        htmlContent += this.createMainContent(activityContent);
-        htmlContent += `</div>`;
-
-        return htmlContent;
+    msgs: {
+        msgNoImage: 'Sin imagen',
+        msgFeedback: 'Mostrar retroalimentación',
+        msgCaseStudy: 'Caso práctico',
     },
 
-    /**
-     * Engine execution order: 2
-     * Add behavior and functionalities
-     */
-    renderBehaviour(data, accessibility, ideviceId) {
-        const $node = $('#' + data.ideviceId);
-        const isInExe = eXe.app.isInExe();
+    init: function () {},
 
-        const $btn = $(
-            `#${data.ideviceId} input.feedbackbutton, #${data.ideviceId} input.feedbacktooglebutton`
-        );
-        if ($btn.length === 1) {
-            const [textA, textB = textA] = $btn.val().split('|');
-            $btn.val(textA)
-                .attr('data-text-a', textA)
-                .attr('data-text-b', textB);
-            $btn.off('click')
-                .closest('.feedback-button')
-                .removeClass('clearfix');
+    renderView: function (data, accesibility, template, ideviceId) {
+        data.msgs =
+            typeof data.msgs == 'undefined' ? $casestudy.msgs : data.msgs;
+        const htmlContent = this.createInterfaceCaseStudy(data);
+        return template.replace('{content}', htmlContent);
+    },
 
-            $btn.on('click', function () {
-                if ($text.working) return false;
-                $text.working = true;
-                const btn = $(this);
-                const feedbackEl = btn
-                    .closest('.feedback-button')
-                    .next('.feedback');
-
-                if (feedbackEl.is(':visible')) {
-                    btn.val(btn.attr('data-text-a'));
-                    feedbackEl.fadeOut(() => {
-                        $text.working = false;
-                    });
-                } else {
-                    btn.val(btn.attr('data-text-b'));
-                    feedbackEl.fadeIn(() => {
-                        $text.working = false;
-                    });
-                }
-                $exeDevices.iDevice.gamification.math.updateLatex(
-                    '.exe-text-template'
-                );
-            });
+    renderBehaviour: function (data, accesibility, ideviceId) {
+        data.msgs =
+            typeof data.msgs == 'undefined' ? $casestudy.msgs : data.msgs;
+        const $title = $('#' + data.ideviceId)
+            .closest('article')
+            .find('header h1.box-title');
+        if (
+            data.title &&
+            data.title == 'Case Study' &&
+            $title.text() == 'Case Study'
+        ) {
+            $title.text(data.msgs.msgCaseStudy);
         }
-        const dataString = $node.html() || '';
+        this.addEvents(data);
+        const dataString = JSON.stringify(data);
         if ($exeDevices.iDevice.gamification.math.hasLatex(dataString)) {
             $exeDevices.iDevice.gamification.math.updateLatex(
-                '.exe-text-template'
+                '.exe-casestudy-container'
             );
         }
     },
 
-    replaceResourceDirectoryPaths(newDir, htmlString) {
-        let dir = newDir.trim();
-        if (!dir.endsWith('/')) dir += '/';
-        const custom = $('html').is('#exe-index') ? 'custom/' : '../custom/';
-
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlString, 'text/html');
-        doc.querySelectorAll(
-            'img[src], video[src], audio[src], a[href]'
-        ).forEach((el) => {
-            const attr = el.hasAttribute('src') ? 'src' : 'href';
-            const val = el.getAttribute(attr).trim();
-
-            if (/^\/?files\//.test(val)) {
-                const filename = val.split('/').pop() || '';
-                if (val.indexOf('file_manager') === -1) {
-                    el.setAttribute(attr, dir + filename);
-                } else {
-                    el.setAttribute(attr, custom + filename);
-                }
-            }
-        });
-        return doc.body.innerHTML;
+    createInterfaceCaseStudy: function (data) {
+        const infoContentHTML = $casestudy.createInfoHTML(
+            data.textInfoDurationInput === ''
+                ? ''
+                : data.textInfoDurationTextInput,
+            data.textInfoDurationInput,
+            data.textInfoParticipantsInput === ''
+                ? ''
+                : data.textInfoParticipantsTextInput,
+            data.textInfoParticipantsInput
+        );
+        const history = data.history;
+        return `
+        <div class="caseStudyContent">            
+            <div class="CSP-Info mb-3">
+                ${infoContentHTML}
+            </div>
+            <div class="CSP-History mb-3" >
+                ${history}
+            </div>
+            <div class="CSP-Activities mb-3">
+                ${this.generateActivities(data)}
+            </div>
+        </div>
+    `;
     },
 
-    init(data, accessibility) {},
+    generateActivities: function (data) {
+        return data.activities
+            .map((activity, index) => {
+                const activity1 = activity.activity;
+                const feedback = activity.feedback;
+                const button = activity.buttonCaption || data.msgs.msgFeedback;
+                const bgClass = index % 2 ? 'CSP-ActivityDivBlack' : '';
+                const hasFeedback = feedback.trim().length > 0;
 
-    createMainContent(content) {
-        return `
-            <div class="exe-text-activity">
-                <div>${content}</div>
-            </div>`;
+                return `
+                <div class="CSP-ActivityDiv ${bgClass}">
+                    <div class="CSP-Activity mb-3">
+                        ${activity1}
+                    </div>
+                    ${
+                        hasFeedback
+                            ? `
+                    <div class="iDevice_buttons feedback-button js-required">
+                        <input type="button" class="CSP-FeedbackBtn feedbacktooglebutton" value="${button}">
+                    </div>`
+                            : ''
+                    }
+                    <div class="CSP-FeedbackText feedback js-feedback js-hidden" style="display: none;">
+                        ${feedback}
+                    </div>
+                </div>
+            `;
+            })
+            .join('');
     },
 
     createInfoHTML(
@@ -219,11 +132,16 @@ var $text = {
             </dl>`;
     },
 
-    createFeedbackHTML(title, content) {
-        return `
-            <div class="iDevice_buttons feedback-button js-required">
-                <input type="button" class="feedbacktooglebutton" value="${title}">
-            </div>
-            <div class="feedback js-feedback js-hidden">${content}</div>`;
+    addEvents: function (data) {
+        $(`.CSP-Activities`).off('click', '.CSP-FeedbackBtn');
+        $(`.CSP-Activities`).on('click', '.CSP-FeedbackBtn', function () {
+            const $activityDiv = $(this).closest('.CSP-ActivityDiv');
+            const $fb = $activityDiv.find('.CSP-FeedbackText');
+            $fb.slideToggle(200, function () {
+                $exeDevices.iDevice.gamification.math.updateLatex(
+                    '.CSP-FeedbackText'
+                );
+            });
+        });
     },
 };
